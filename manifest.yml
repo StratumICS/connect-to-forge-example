@@ -1,0 +1,90 @@
+# Forge port of the Connect app "Create GitHub Branches from Jira" (key com.osowskit.jira.github.app).
+# Connect module                         Forge module
+# webPanels[osowskit-app]             -> jira:issueContext (same place: right-hand column of the issue view)
+# postInstallPage                     -> jira:adminPage with useAsGetStarted
+# lifecycle + JWT + Heroku server     -> not needed: Forge functions, Forge storage, Forge external auth
+# scopes: read                        -> none on Jira (the issue key arrives in the module context)
+modules:
+  jira:issueContext:
+    - key: osowskit-app
+      resource: panel
+      resolver:
+        function: resolver
+      render: native
+      title: GitHub Development
+      label: GitHub Development
+      description: Create and view the GitHub branch for this issue.
+  jira:adminPage:
+    - key: install-github-app-page
+      resource: get-started
+      resolver:
+        function: resolver
+      render: native
+      title: Create GitHub Branches from Jira
+      useAsGetStarted: true
+  function:
+    - key: resolver
+      handler: index.handler
+      providers:
+        auth:
+          - github
+resources:
+  - key: panel
+    path: src/frontend/panel.jsx
+  - key: get-started
+    path: src/frontend/get-started.jsx
+providers:
+  auth:
+    - key: github
+      name: GitHub
+      type: oauth2
+      clientId: Iv23liB69AxUMnF6z31t # a test GitHub App; replace with your own
+      remotes:
+        - github-api
+      bearerMethod: authorization-header
+      actions:
+        authorization:
+          remote: github-web
+          path: /login/oauth/authorize
+        exchange:
+          remote: github-web
+          path: /login/oauth/access_token
+          overrides:
+            headers:
+              Accept: application/json
+        refreshToken:
+          remote: github-web
+          path: /login/oauth/access_token
+          overrides:
+            headers:
+              Accept: application/json
+        retrieveProfile:
+          remote: github-api
+          path: /user
+          resolvers:
+            id: node_id
+            displayName: login
+            avatarUrl: avatar_url
+remotes:
+  - key: github-api
+    baseUrl: https://api.github.com
+    operations:
+      - fetch
+  - key: github-web
+    baseUrl: https://github.com
+    operations:
+      - fetch
+permissions:
+  scopes:
+    - storage:app
+  external:
+    fetch:
+      backend:
+        - remote: github-api
+        - remote: github-web
+app:
+  runtime:
+    name: nodejs24.x
+    memoryMB: 256
+    architecture: arm64
+  id: ari:cloud:ecosystem::app/82cb6673-fe65-4f3e-8d10-772f105728d2
